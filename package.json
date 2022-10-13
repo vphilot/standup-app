@@ -5,6 +5,7 @@
         "name": "Clyde D'Souza"
     },
     "scripts": {
+        "tsc": "tsc",
         "build": "npm run tsc",
         "test": "ts-mocha tests/**/*.test.ts",
         "go": "netlify dev --live"
