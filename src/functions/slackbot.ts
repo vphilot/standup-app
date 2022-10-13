@@ -1,4 +1,4 @@
-import { App, ExpressReceiver, ReceiverEvent } from "@slack/bolt";
+import { App, ExpressReceiver, Option, ReceiverEvent } from "@slack/bolt";
 import { APIGatewayEvent, Context } from "aws-lambda";
 import * as dotenv from "dotenv";
 import { IHandlerResponse, ISlackPrivateReply, ISlackReactionReply, ISlackReply, SlashCommands } from "../constants";
@@ -23,38 +23,52 @@ const app: App = new App({
   receiver: expressReceiver
 });
 
-app.message(async ({ message }) => {
-  const reactionPacket: ISlackReactionReply = {
-    app: app,
-    botToken: process.env.SLACK_BOT_TOKEN,
-    channelId: message.channel,
-    threadTimestamp: message.ts,
-    reaction: "robot_face"
-  };
-  await replyReaction(reactionPacket);
+// Listen for a slash command invocation
+app.command('/standup', async ({ ack, payload, context }) => {
+  try {
+    await ack();
 
-  const messagePacket: ISlackReply = {
-    app: app,
-    botToken: process.env.SLACK_BOT_TOKEN,
-    channelId: message.channel,
-    threadTimestamp: message.ts,
-    message: "Hello :wave:"
-  };
-  await replyMessage(messagePacket);
+    const users = ['Filippo', 'Vini', 'Paul', 'Chris', 'Reinier', 'Zak']
+    const random = users.sort((a, b) => 0.5 - Math.random());
+
+    const blocks = random.map((user, index) => ({
+						"text": {
+							"type": "mrkdwn",
+							"text": `${user}`
+						},
+						"value": `value-${index}`
+    }))
+
+      const result = await app.client.chat.postMessage({
+      token: context.botToken,
+      // Channel to send message to
+      channel: payload.channel_id,
+      // Include a button in the message (or whatever blocks you want!)
+      blocks: [
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "⚡ Today's standup"
+			},
+			"accessory": {
+				"type": "checkboxes",
+				"options": blocks as Option[],
+				"action_id": "checkboxes-action"
+			}
+		}
+	],
+      // Text in the notification
+      text: 'Message from Standup App by the amazing Vini'
+    });
+    console.log(result);
+  }
+  catch (error) {
+    console.error(error);
+  }
 });
 
-app.command(SlashCommands.STANDUP, async({body, ack}) => {
-  ack();
 
-  const messagePacket: ISlackPrivateReply = {
-    app: app,
-    botToken: process.env.SLACK_BOT_TOKEN,
-    channelId: body.channel_id,
-    userId: body.user_id,
-    message: "Greetings, user!"
-  };
-  await replyPrivateMessage(messagePacket);
-});
 
 export async function handler(event: APIGatewayEvent, context: Context): Promise<IHandlerResponse> {
   const payload: any = parseRequestBody(event.body, event.headers["content-type"]);
